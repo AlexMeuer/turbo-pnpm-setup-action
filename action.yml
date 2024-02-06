@@ -1,0 +1,46 @@
+name: 'Turbo Pnpm Setup'
+description: 'Setup Turbo and pnpm with GH caching for a Node.js project'
+inputs:
+  turbo-cache-dir:
+    description: 'Path to the directory containing the Turbo cache'
+    required: false
+    default: '.turbo'
+  node-version-file:
+    description: 'Path to the file containing the Node.js version'
+    required: false
+    default: '.nvmrc'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Cache turbo build setup
+      uses: actions/cache@v3
+      with:
+        path: ${{ inputs.turbo-cache-dir }}
+        key: ${{ runner.os }}-turbo-${{ github.sha }}
+        restore-keys: ${{ runner.os }}-turbo-
+
+    - name: Setup node
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ${{ inputs.node-version-file }}
+
+    - uses: pnpm/action-setup@v2
+      with:
+        version: 8
+        run_install: false
+
+    - name: Get pnpm store directory
+      shell: bash
+      run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+    - uses: actions/cache@v3
+      name: Setup pnpm cache
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: ${{ runner.os }}-pnpm-store-
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
